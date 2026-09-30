@@ -74,6 +74,14 @@ async def test_people_http_contract(tmp_path, monkeypatch):
     ('## Person\n- aliases: \n- tz: \n- phone: \n', [{'name': 'Person'}]),
     ('## Compact\n-short:C\n-telegram:@compact\n',
      [{'name': 'Compact', 'short': 'C', 'telegram': '@compact'}]),
+    ('## Person\n```markdown\n- email: private@example.com\n'
+     '## Private Example\n- phone: secret\n```\n- short: Public\n## Next\n',
+     [{'name': 'Person', 'short': 'Public'}, {'name': 'Next'}]),
+    ('## Person\n### Notes\n~~~~markdown\n## Private Example\n'
+     '```\n~~~\n- phone: secret\n~~~~~\n## Next\n',
+     [{'name': 'Person'}, {'name': 'Next'}]),
+    ('## Person\n```\n## Private Example\n- email: secret\n',
+     [{'name': 'Person'}]),
 ])
 def test_people_parser(tmp_path, monkeypatch, text, expected):
     monkeypatch.setenv('HERMES_HOME', str(tmp_path))
