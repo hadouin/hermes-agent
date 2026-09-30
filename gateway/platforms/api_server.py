@@ -1066,6 +1066,21 @@ class APIServerAdapter(BasePlatformAdapter):
             ],
         })
 
+    async def _handle_people(self, request: "web.Request") -> "web.Response":
+        """GET /v1/people — public people.md fields, with no model or session."""
+        auth_err = self._check_auth(request)
+        if auth_err is not None:
+            return auth_err
+        # Fail closed even for unsupported manual wiring with no configured key.
+        if not self._api_key:
+            return web.json_response({"error": {"message": "API key required"}}, status=401)
+        from gateway.platforms.people import read_people
+        try:
+            return web.json_response(await asyncio.to_thread(read_people))
+        except OSError:
+            logger.warning("API server could not read people.md")
+            return web.json_response({"error": {"message": "People file unavailable"}}, status=503)
+
     async def _handle_capabilities(self, request: "web.Request") -> "web.Response":
         """GET /v1/capabilities — advertise the stable API surface.
 
@@ -1115,6 +1130,7 @@ class APIServerAdapter(BasePlatformAdapter):
                 "jobs_admin": False,
                 "memory_write_api": False,
                 "skills_api": True,
+                "people_api": True,
                 "audio_api": False,
                 "realtime_voice": False,
                 "session_continuity_header": "X-Hermes-Session-Id",
@@ -1133,6 +1149,7 @@ class APIServerAdapter(BasePlatformAdapter):
                 "run_approval": {"method": "POST", "path": "/v1/runs/{run_id}/approval"},
                 "run_stop": {"method": "POST", "path": "/v1/runs/{run_id}/stop"},
                 "skills": {"method": "GET", "path": "/v1/skills"},
+                "people": {"method": "GET", "path": "/v1/people"},
                 "toolsets": {"method": "GET", "path": "/v1/toolsets"},
                 "sessions": {"method": "GET", "path": "/api/sessions"},
                 "session_create": {"method": "POST", "path": "/api/sessions"},
@@ -4055,6 +4072,7 @@ class APIServerAdapter(BasePlatformAdapter):
             self._app.router.add_get("/v1/models", self._handle_models)
             self._app.router.add_get("/v1/capabilities", self._handle_capabilities)
             self._app.router.add_get("/v1/skills", self._handle_skills)
+            self._app.router.add_get("/v1/people", self._handle_people, allow_head=False)
             self._app.router.add_get("/v1/toolsets", self._handle_toolsets)
             # Session/client control surface (thin wrappers over SessionDB + _run_agent)
             self._app.router.add_get("/api/sessions", self._handle_list_sessions)
